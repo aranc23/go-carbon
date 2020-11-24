@@ -1,0 +1,105 @@
+%define carbon_user carbon
+%define carbon_group carbon
+%define carbon_loggroup adm
+
+%define debug_package %{nil}
+
+%{!?_unitdir: %define _unitdir /usr/lib/systemd/system}
+
+# prerelease seq number
+
+Name:	        {{{ git_dir_name }}}
+Version:	{{{ git_dir_version }}}
+# TODO: Modify Release when we switch from prerelease to release version.
+# https://fedoraproject.org/wiki/Packaging:Versioning
+Release:	1%{?dist}
+Summary:	Carbon server for graphite
+
+Group:		Development/Tools
+License:	MIT License
+URL:		https://github.com/lomik/go-carbon
+
+Source0:	{{{ git_dir_pack }}}
+
+BuildRoot:      %{name}
+
+BuildRequires:  golang >= 1.8
+
+%description
+Golang implementation of Graphite/Carbon server with classic architecture: Agent -> Cache -> Persister
+
+%prep
+{{{ git_dir_setup_macro }}}
+
+%build
+go build
+
+%install
+%{__rm} -rf %{buildroot}
+%{__mkdir} -p %{buildroot}%{_bindir}
+%{__mkdir} -p %{buildroot}%{_sysconfdir}/%{name}
+%{__mkdir} -p %{buildroot}/var/lib/graphite/whisper
+%{__mkdir} -p %{buildroot}%{_localstatedir}/log/%{name}
+%{__mkdir} -p %{buildroot}%{_unitdir}
+
+%{__install} -pD -m 755 %{name} \
+    %{buildroot}/%{_bindir}/%{name}
+%{__install} -pD -m 644 deploy/%{name}.conf %{buildroot}%{_sysconfdir}/%{name}/%{name}.conf
+%{__install} -pD -m 644 deploy/storage-schemas.conf %{buildroot}%{_sysconfdir}/%{name}/storage-schemas.conf
+%{__install} -pD -m 644 deploy/storage-aggregation.conf %{buildroot}%{_sysconfdir}/%{name}/storage-aggregation.conf
+%{__install} -pD -m 644 deploy/%{name}.service %{buildroot}%{_unitdir}/%{name}.service
+
+# install log rotation stuff
+%{__mkdir} -p $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
+%{__install} -m 644 -p deploy/go-carbon.logrotate \
+    $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d/%{name}
+
+%files
+%defattr(-,root,root,-)
+%{_bindir}/%{name}
+%config(noreplace) %{_sysconfdir}/%{name}/%{name}.conf
+%config(noreplace) %{_sysconfdir}/%{name}/storage-schemas.conf
+%config(noreplace) %{_sysconfdir}/%{name}/storage-aggregation.conf
+%config(noreplace) %{_sysconfdir}/logrotate.d/%{name}
+%attr(0755,root,root) %dir %{_localstatedir}/log/%{name}
+%attr(0755,root,root) %dir /var/lib/graphite
+%attr(0755,%{carbon_user},%{carbon_group}) %dir /var/lib/graphite/whisper
+%{_unitdir}/%{name}.service
+
+%pre
+# Add the "carbon" user
+getent group %{carbon_group} >/dev/null || groupadd -r %{carbon_group}
+getent passwd %{carbon_user} >/dev/null || \
+    useradd -r -g %{carbon_group} -s /sbin/nologin \
+    --no-create-home -c "carbon user"  %{carbon_user}
+exit 0
+
+%post
+if [ $1 -eq 1 ] ; then
+    # Initial installation
+    /usr/bin/systemctl preset %{name}.service >/dev/null 2>&1 || :
+fi
+if [ $1 -eq 1 ]; then
+    # Touch and set permisions on default log files on installation
+
+    if [ -d %{_localstatedir}/log/%{name} ]; then
+        if [ ! -e %{_localstatedir}/log/%{name}/%{name}.log ]; then
+            touch %{_localstatedir}/log/%{name}/%{name}.log
+            %{__chmod} 640 %{_localstatedir}/log/%{name}/%{name}.log
+            %{__chown} %{carbon_user}:%{carbon_loggroup} %{_localstatedir}/log/%{name}/%{name}.log
+        fi
+    fi
+fi
+
+%preun
+if [ $1 -eq 0 ] ; then
+    # Package removal, not upgrade
+    /usr/bin/systemctl --no-reload disable %{name}.service > /dev/null 2>&1 || :
+    /usr/bin/systemctl stop %{name}.service > /dev/null 2>&1 || :
+fi
+
+%postun
+/usr/bin/systemctl daemon-reload >/dev/null 2>&1 || :
+
+%changelog
+{{{ git_dir_changelog }}}
