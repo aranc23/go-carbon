@@ -7,7 +7,7 @@
 %{!?_unitdir: %define _unitdir /usr/lib/systemd/system}
 
 # prerelease seq number
-
+VCS:	{{{ git_dir_vcs }}}
 Name:	        {{{ git_dir_name }}}
 Version:	{{{ git_dir_version }}}
 # TODO: Modify Release when we switch from prerelease to release version.
