@@ -17,7 +17,7 @@ Summary:	Carbon server for graphite
 
 Group:		Development/Tools
 License:	MIT License
-URL:		https://github.com/lomik/go-carbon
+URL:		https://github.com/aranc23/go-carbon.git
 
 Source0:	{{{ git_dir_pack }}}
 
