@@ -6,6 +6,7 @@
 
 %{!?_unitdir: %define _unitdir /usr/lib/systemd/system}
 
+URL:		https://github.com/aranc23/go-carbon
 # prerelease seq number
 VCS:	{{{ git_dir_vcs }}}
 Name:	        {{{ git_dir_name }}}
@@ -17,7 +18,6 @@ Summary:	Carbon server for graphite
 
 Group:		Development/Tools
 License:	MIT License
-URL:		https://github.com/aranc23/go-carbon.git
 
 Source0:	{{{ git_dir_pack }}}
 
